@@ -1738,7 +1738,7 @@ public class Runtime extends Service implements MessageListener, ServiceLifeCycl
       if (check.exists()) {
         load(name);
       } else {
-        log.info("config for %s - %s does not exist", name, filename);
+        log.info("config for {} - {} does not exist", name, filename);
       }
     } catch (Exception e) {
       String error = String.format("createAndStart(%s, %s) %s", name, type, e.getClass().getCanonicalName());
@@ -3490,6 +3490,9 @@ public class Runtime extends Service implements MessageListener, ServiceLifeCycl
   public ServiceConfig load(ServiceConfig c) {
     super.load(c);
     RuntimeConfig config = (RuntimeConfig) c;
+    if (config.logLevel != null) {
+      setLogLevel(config.logLevel);
+    }
     setLocale(config.locale);
     setAllVirtual(config.virtual);
 
@@ -3672,6 +3675,10 @@ public class Runtime extends Service implements MessageListener, ServiceLifeCycl
    */
   public static void setConfig(String config) {
     Runtime.getInstance().setConfigName(config);
+  }
+
+  public static void start() {
+    Runtime.start("runtime", "Runtime");
   }
 
 }

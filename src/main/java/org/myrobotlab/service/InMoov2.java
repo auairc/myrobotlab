@@ -270,15 +270,12 @@ public class InMoov2 extends Service implements TextListener, TextPublisher, Joy
 
       LoggingFactory.init(Level.INFO);
       Platform.setVirtual(true);
-      Runtime.main(new String[] { "--from-launcher", "--id", "inmoov" });
+      // Runtime.main(new String[] { "--from-launcher", "--id", "inmoov" });
       // Runtime.start("s01", "Servo");
       Runtime.start("intro", "Intro");
-
-      WebGui webgui = (WebGui) Runtime.create("webgui", "WebGui");
-      webgui.autoStartBrowser(false);
-      webgui.startService();
-
-      InMoov2 i01 = (InMoov2) Runtime.create("i01", "InMoov2");
+      Runtime.start("webgui", "WebGui");
+      
+      InMoov2 i01 = (InMoov2) Runtime.start("i01", "InMoov2");
       i01.setVirtual(false);
       i01.startService();
       i01.displayFullScreen("https://upload.wikimedia.org/wikipedia/commons/8/87/InMoov_Wheel_1.jpg");
@@ -449,6 +446,11 @@ public class InMoov2 extends Service implements TextListener, TextPublisher, Joy
 
   public InMoov2(String n, String id) {
     super(n, id);
+    
+    // suppress the autostarting feature
+    // inmoov has many peers and we want the capability of 
+    // bring only some of them online at a time
+    autoStartPeers = false;
 
     // by default all servos will auto-disable
     // Servo.setAutoDisableDefault(true); //until peer servo services for
@@ -1518,12 +1520,13 @@ public class InMoov2 extends Service implements TextListener, TextPublisher, Joy
     return startHead(port, null, null, null, null, null, null, null);
   }
 
-  // legacy inmoov head exposed pins
+  @Deprecated /* uses config now to configure - so local params & assumption Arduino is not needed nor desired */
   public InMoov2Head startHead(String port, String type, Integer headYPin, Integer headXPin, Integer eyeXPin, Integer eyeYPin, Integer jawPin, Integer rollNeckPin) {
 
     speakBlocking(get("STARTINGHEAD"));
 
     head = (InMoov2Head) startPeer("head");
+    // load(); PERHAPS ???
     isHeadActivated = true;
 
     if (headYPin != null) {
@@ -1553,12 +1556,18 @@ public class InMoov2 extends Service implements TextListener, TextPublisher, Joy
     }
 
     speakBlocking(get("STARTINGMOUTHCONTROL"));
-    mouthControl = (MouthControl) startPeer("mouthControl");
+    // mouthControl = (MouthControl) startPeer("mouthControl");
+    startPeer("mouthControl");
+    /*
     mouthControl.attach(head.jaw);
     mouthControl.attach((Attachable) getPeer("mouth"));
     mouthControl.setmouth(10, 50);// <-- FIXME - not the right place for
+    */
     // config !!!
 
+    // script support :(
+    exec("isHeadActivated = True"); 
+    
     return head;
   }
 
@@ -2390,6 +2399,17 @@ public class InMoov2 extends Service implements TextListener, TextPublisher, Joy
   public ServiceConfig load(ServiceConfig c) {
     InMoov2Config config = (InMoov2Config) c;
     try {
+      
+      ////////////// "mostly" sane config begin //////////////////////////////
+       if (config.virtual) {
+         Runtime.setAllVirtual(true);
+       }
+
+       if (config.language != null) {
+         exec(String.format("Language=%s", config.language));
+       }
+      ////////////// sane config end //////////////////////////////
+      
       /**
        * <pre>
        * FIXME - 
@@ -2399,6 +2419,12 @@ public class InMoov2 extends Service implements TextListener, TextPublisher, Joy
        *   are currently starting  
        * </pre>
        */
+      
+      // FIXME - should be "virtual:" true/false
+      if (config.ScriptType.equals("Virtual")) {
+        Runtime.setAllVirtual(true);        
+      }
+      exec(String.format("ScriptType=%s", config.ScriptType));
 
       if (config.isController3Activated) {
         startPeer("controller3"); // FIXME ... this kills me :P
@@ -2517,7 +2543,7 @@ public class InMoov2 extends Service implements TextListener, TextPublisher, Joy
       error(e);
     }
 
-    return c;
+      return c;
   }
 
   // public OpenNi startOpenNI() throws Exception {

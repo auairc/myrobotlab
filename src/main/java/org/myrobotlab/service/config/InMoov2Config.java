@@ -2,8 +2,22 @@ package org.myrobotlab.service.config;
 
 public class InMoov2Config extends ServiceConfig {
   
+  ////////////// "mostly" sane config starts here //////////////////////
+  
+  // fully virtualize all hardware - scripts should not need this info
+  public boolean virtual = false;
+  public String language = "en-Us";
+  
+  // directory of music folders - this will be added as a playlist to audiotFile
+  public String myMusicPath="C:\\User\\XXX\\Music\\";
+
+  // ; en-US,fr-FR,es-ES,de-DE,nl-NL,ru-RU,hi-IN,it-IT,fi-FI,pt-PT,tr-TR
+
+  ////////////// sane config ends here //////////////////////
+  
       // ;----------------------------- BASIC CONFIGURATION ----------------------------------------
       // [MAIN]
+      @Deprecated /* is this needed ? - config that changes config ??? */
       public String ScriptType="Virtual";
       // RightSide: Also called FINGERSTARTER : connect one arduino ( called right ) to use FingerStarter + inmoov right side
       // LeftSide: connect one arduino ( called left) to use head / inmoov left side
@@ -11,6 +25,8 @@ public class InMoov2Config extends ServiceConfig {
       // NoArduino: vocal Only
       // Full: Both side arduinos connected
       // Virtual: virtual arduino and inmoov !
+      
+      @Deprecated /* does nothing */
       public boolean debug=false;
 
       String Language="en-US";
@@ -60,15 +76,6 @@ public class InMoov2Config extends ServiceConfig {
 
       // ;Turn off tracking 20 seconds after last presence detected
       public int TrackingTimeout=10000;
-
-      //////////////////// service_1_AudioFile.config.default ////////////////////////////
-      // ;----------------------------- AUDIO CONFIGURATION ----------------------------------------
-      // [AUDIO]
-
-      public String MyMusicPath="C:\\User\\XXX\\Music\\";
-      // ; Define the path for your music directory, this will be used when playing music by the robot
-      // ;------------------------------------- END ------------------------------------------------
-      
      
       //////////////////// service_4_Ear.config.default ////////////////////////////
       // ;----------------------------- EAR CONFIGURATION ----------------------------------------
@@ -447,5 +454,6 @@ public class InMoov2Config extends ServiceConfig {
   public boolean RobotCanMoveRandom;
   public boolean RobotIsSleeping;
   public boolean RobotIsStarted;
+  
 
 }
