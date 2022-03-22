@@ -1,20 +1,10 @@
 package org.myrobotlab.service;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.Locale;
-
 import org.myrobotlab.framework.Service;
-import org.myrobotlab.framework.interfaces.ServiceInterface;
-import org.myrobotlab.io.FileIO;
 import org.myrobotlab.logging.Level;
 import org.myrobotlab.logging.LoggerFactory;
 import org.myrobotlab.logging.LoggingFactory;
 import org.myrobotlab.service.config.InMoov2TorsoConfig;
-import org.myrobotlab.service.config.ServiceConfig;
-import org.myrobotlab.service.config.ServoConfig;
-import org.myrobotlab.service.interfaces.ServoControl;
 import org.slf4j.Logger;
 
 /**
@@ -28,24 +18,25 @@ public class InMoov2Torso extends Service {
 
   public final static Logger log = LoggerFactory.getLogger(InMoov2Torso.class);
 
-  transient public ServoControl topStom;
-  transient public ServoControl midStom;
-  transient public ServoControl lowStom;
-
   public InMoov2Torso(String n, String id) {
     super(n, id);
   }
 
   public void startService() {
     super.startService();
-    topStom = (ServoControl) startPeer("topStom");
-    midStom = (ServoControl) startPeer("midStom");
-    lowStom = (ServoControl) startPeer("lowStom");
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+    Runtime.start(c.topStom);
+    Runtime.start(c.midStom);
+    Runtime.start(c.lowStom);
   }
 
   public void releaseService() {
     try {
       disable();
+      InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+      Runtime.release(c.topStom);
+      Runtime.release(c.midStom);
+      Runtime.release(c.lowStom);
       super.releaseService();
     } catch (Exception e) {
       error(e);
@@ -53,67 +44,61 @@ public class InMoov2Torso extends Service {
   }
 
   public void enable() {
-    if (topStom != null)
-      topStom.enable();
-    if (midStom != null)
-      midStom.enable();
-    if (lowStom != null)
-      lowStom.enable();
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+    send(c.topStom, "enable");
+    send(c.midStom, "enable");
+    send(c.lowStom, "enable");
   }
 
-  public void setAutoDisable(Boolean param) {
-    if (topStom != null)
-      topStom.setAutoDisable(param);
-    if (midStom != null)
-      midStom.setAutoDisable(param);
-    if (lowStom != null)
-      lowStom.setAutoDisable(param);
+  public void setAutoDisable(Boolean b) {
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+    send(c.topStom, "setAutoDisable", b);
+    send(c.midStom, "setAutoDisable", b);
+    send(c.lowStom, "setAutoDisable", b);
   }
 
   @Override
   public void broadcastState() {
-    if (topStom != null)
-      topStom.broadcastState();
-    if (midStom != null)
-      midStom.broadcastState();
-    if (lowStom != null)
-      lowStom.broadcastState();
+    super.broadcastState();
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+    send(c.topStom, "broadcastState");
+    send(c.midStom, "broadcastState");
+    send(c.lowStom, "broadcastState");
   }
 
   public void disable() {
-    if (topStom != null)
-      topStom.disable();
-    if (midStom != null)
-      midStom.disable();
-    if (lowStom != null)
-      lowStom.disable();
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+    send(c.topStom, "disable");
+    send(c.midStom, "disable");
+    send(c.lowStom, "disable");
+  }
+
+  private Long getLastActivityTime(String name) {
+    try {
+      return (Long) sendBlocking(name, "getLastActivityTime");
+    } catch (Exception e) {
+      error(e);
+    }
+    return 0L;
   }
 
   public long getLastActivityTime() {
-    long minLastActivity = Math.max(topStom.getLastActivityTime(), midStom.getLastActivityTime());
-    minLastActivity = Math.max(minLastActivity, lowStom.getLastActivityTime());
-    return minLastActivity;
-  }
 
-  @Deprecated /* use LangUtils */
-  public String getScript(String inMoovServiceName) {
-    return String.format(Locale.ENGLISH, "%s.moveTorso(%.2f,%.2f,%.2f)\n", inMoovServiceName, topStom.getCurrentInputPos(), midStom.getCurrentInputPos(),
-        lowStom.getCurrentInputPos());
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+
+    long lastActivityTime = Math.max(getLastActivityTime(c.topStom), getLastActivityTime(c.midStom));
+    lastActivityTime = Math.max(lastActivityTime, getLastActivityTime(c.lowStom));
+    return lastActivityTime;
   }
 
   public void moveTo(Double topStomPos, Double midStomPos, Double lowStomPos) {
     if (log.isDebugEnabled()) {
       log.debug("{} moveTo {} {} {}", getName(), topStomPos, midStomPos, lowStomPos);
     }
-    if (topStom != null && topStomPos != null) {
-      this.topStom.moveTo(topStomPos);
-    }
-    if (midStom != null && midStomPos != null) {
-      this.midStom.moveTo(midStomPos);
-    }
-    if (lowStom != null && lowStomPos != null) {
-      this.lowStom.moveTo(lowStomPos);
-    }
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+    send(c.topStom, "moveTo", topStomPos);
+    send(c.midStom, "moveTo", midStomPos);
+    send(c.lowStom, "moveTo", lowStomPos);
   }
 
   public void moveToBlocking(Double topStomPos, Double midStomPos, Double lowStomPos) {
@@ -124,59 +109,32 @@ public class InMoov2Torso extends Service {
   }
 
   public void waitTargetPos() {
-    if (topStom != null)
-      topStom.waitTargetPos();
-    if (midStom != null)
-      midStom.waitTargetPos();
-    if (lowStom != null)
-      lowStom.waitTargetPos();
+
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+
+    try {
+      sendBlocking(c.topStom, "waitTargetPos");
+      sendBlocking(c.midStom, "waitTargetPos");
+      sendBlocking(c.lowStom, "waitTargetPos");
+    } catch (Exception e) {
+      error(e);
+    }
   }
 
   public void rest() {
-    if (topStom != null)
-      topStom.rest();
-    if (midStom != null)
-      midStom.rest();
-    if (lowStom != null)
-      lowStom.rest();
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+    send(c.topStom, "rest");
+    send(c.midStom, "rest");
+    send(c.lowStom, "rest");
   }
 
   @Override
   public boolean save() {
     super.save();
-    if (topStom != null)
-      topStom.save();
-    if (midStom != null)
-      midStom.save();
-    if (lowStom != null)
-      lowStom.save();
-    return true;
-  }
-
-  @Deprecated
-  public boolean loadFile(String file) {
-    File f = new File(file);
-    Python p = (Python) Runtime.getService("python");
-    log.info("Loading  Python file {}", f.getAbsolutePath());
-    if (p == null) {
-      log.error("Python instance not found");
-      return false;
-    }
-    String script = null;
-    try {
-      script = FileIO.toString(f.getAbsolutePath());
-    } catch (IOException e) {
-      log.error("IO Error loading file : ", e);
-      return false;
-    }
-    // evaluate the scripts in a blocking way.
-    boolean result = p.exec(script, true);
-    if (!result) {
-      log.error("Error while loading file {}", f.getAbsolutePath());
-      return false;
-    } else {
-      log.debug("Successfully loaded {}", f.getAbsolutePath());
-    }
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+    send(c.topStom, "save");
+    send(c.midStom, "save");
+    send(c.lowStom, "save");
     return true;
   }
 
@@ -185,74 +143,43 @@ public class InMoov2Torso extends Service {
    * servos are not modified in this method.
    * 
    * @param topStomMin
-   *          a
    * @param topStomMax
-   *          a
    * @param midStomMin
-   *          a
    * @param midStomMax
-   *          a
    * @param lowStomMin
-   *          a
    * @param lowStomMax
-   *          a
-   * 
    */
   public void setLimits(double topStomMin, double topStomMax, double midStomMin, double midStomMax, double lowStomMin, double lowStomMax) {
-    if (topStom != null)
-      topStom.setMinMaxOutput(topStomMin, topStomMax);
-    if (midStom != null)
-      midStom.setMinMaxOutput(midStomMin, midStomMax);
-    if (lowStom != null)
-      lowStom.setMinMaxOutput(lowStomMin, lowStomMax);
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+    send(c.topStom, "setMinMaxOutput", topStomMin, topStomMax);
+    send(c.topStom, "setMinMaxOutput", midStomMin, midStomMax);
+    send(c.topStom, "setMinMaxOutput", lowStomMin, lowStomMax);
   }
 
-  // ------------- added set pins
-  public void setpins(Integer topStomPin, Integer midStomPin, Integer lowStomPin) {
-    // createPeers();
-    /*
-     * this.topStom.setPin(topStom); this.midStom.setPin(midStom);
-     * this.lowStom.setPin(lowStom);
-     */
-
-    /**
-     * FIXME - has to be done outside of
-     * 
-     * arduino.servoAttachPin(topStom, topStomPin);
-     * arduino.servoAttachPin(topStom, midStomPin);
-     * arduino.servoAttachPin(topStom, lowStomPin);
-     */
+  public void setPins(Integer topStomPin, Integer midStomPin, Integer lowStomPin) {
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+    send(c.topStom, "setPin", topStomPin);
+    send(c.midStom, "setPin", midStomPin);
+    send(c.lowStom, "setPin", lowStomPin);
   }
 
   public void setSpeed(Double topStomSpeed, Double midStomSpeed, Double lowStomSpeed) {
-    if (topStom != null)
-      topStom.setSpeed(topStomSpeed);
-    if (midStom != null)
-      midStom.setSpeed(midStomSpeed);
-    if (lowStom != null)
-      lowStom.setSpeed(lowStomSpeed);
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+    send(c.topStom, "setSpeed", topStomSpeed);
+    send(c.midStom, "setSpeed", midStomSpeed);
+    send(c.lowStom, "setSpeed", lowStomSpeed);
   }
 
   public void test() {
-
-    if (topStom != null)
-      topStom.moveTo(topStom.getCurrentInputPos() + 2);
-    if (midStom != null)
-      midStom.moveTo(midStom.getCurrentInputPos() + 2);
-    if (lowStom != null)
-      lowStom.moveTo(lowStom.getCurrentInputPos() + 2);
-
-    moveTo(35.0, 45.0, 55.0);
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+    send(c.topStom, "moveInc", 2);
+    send(c.midStom, "moveInc", 2);
+    send(c.lowStom, "moveInc", 2);
   }
 
   @Deprecated /* use setSpeed */
   public void setVelocity(Double topStomSpeed, Double midStomSpeed, Double lowStomSpeed) {
-    if (topStom != null)
-      topStom.setSpeed(topStomSpeed);
-    if (midStom != null)
-      midStom.setSpeed(midStomSpeed);
-    if (lowStom != null)
-      lowStom.setSpeed(lowStomSpeed);
+    setSpeed(topStomSpeed, midStomSpeed, lowStomSpeed);
   }
 
   static public void main(String[] args) {
@@ -270,21 +197,17 @@ public class InMoov2Torso extends Service {
   }
 
   public void fullSpeed() {
-    if (topStom != null)
-      topStom.fullSpeed();
-    if (midStom != null)
-      midStom.fullSpeed();
-    if (lowStom != null)
-      lowStom.fullSpeed();
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+    send(c.topStom, "fullSpeed");
+    send(c.midStom, "fullSpeed");
+    send(c.lowStom, "fullSpeed");
   }
 
   public void stop() {
-    if (topStom != null)
-      topStom.stop();
-    if (midStom != null)
-      midStom.stop();
-    if (lowStom != null)
-      lowStom.stop();
+    InMoov2TorsoConfig c = (InMoov2TorsoConfig) config;
+    send(c.topStom, "stop");
+    send(c.midStom, "stop");
+    send(c.lowStom, "stop");
   }
-  
+
 }

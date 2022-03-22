@@ -169,7 +169,6 @@ public class Runtime extends Service implements MessageListener, ServiceLifeCycl
 
   protected final Set<String> serviceTypes = new HashSet<>();
 
-  // protected String configName = "default";
   protected String configName = null;
 
   /**
@@ -330,6 +329,9 @@ public class Runtime extends Service implements MessageListener, ServiceLifeCycl
    * @param type
    * @return
    */
+  // FIXME - this method should be private - user should not able to create without starting
+  // there is no point ... and it just makes it more complicated, if you want to adjust 
+  // configuration adjust config in the plan before starting
   static public synchronized ServiceInterface create(String name, String type) {
     ServiceInterface si = Runtime.getService(name);
     if (si != null) {
@@ -343,7 +345,7 @@ public class Runtime extends Service implements MessageListener, ServiceLifeCycl
     // at this point - the plan should be loaded, now its time to create the
     // children peers
     // and parent service
-    return createServices(name);
+    return startServicesFromPlan(name);
   }
 
   /**
@@ -353,7 +355,7 @@ public class Runtime extends Service implements MessageListener, ServiceLifeCycl
    * @param name
    * @return
    */
-  private static ServiceInterface createServices(String name) {
+  private static ServiceInterface startServicesFromPlan(String name) {
     Runtime runtime = Runtime.getInstance();
     // get plan
     Plan plan = runtime.plan;
@@ -371,7 +373,7 @@ public class Runtime extends Service implements MessageListener, ServiceLifeCycl
     // if Runtime definition exists - pre-load it
     // special handling of runtime - runtime has a registry
     // it will be loaded now into the plan so our plan will not be modified
-    // while executing it (bad idea)
+    // while executing it (bad idea) FIXME - make runtime config required !
     RuntimeConfig rc = (RuntimeConfig) plan.get("runtime");
     if (rc != null) {
       for (String n : rc.registry) {
@@ -391,7 +393,18 @@ public class Runtime extends Service implements MessageListener, ServiceLifeCycl
       for (String s : rc.registry) {
         services.add(s);
       }
+      
+      // if the user specified with "name" what service they wanted from this plan
+      // and it currently doesn't exist - add it
+      if (!services.contains(name)) {
+        services.add(name);
+      }
+      
     } else {
+      // FIXME - I don't think this should be allowed
+      // starting all services in plan :(
+      // runtime definition in config should a REQUIREMENT
+      // if you want all of them to start runtime.registry should have all of the entries
       services = plan.keySet();
     }
 
@@ -416,27 +429,27 @@ public class Runtime extends Service implements MessageListener, ServiceLifeCycl
         si = createService(serviceName, null, null);
       }
 
-        // FIXME - bad idea
-        // si.setPlan(plan);
+      // FIXME - bad idea
+      // si.setPlan(plan);
 
-        // ANOTHER DESIGN CONSIDERATION - SHOULD CONFIG APPLY BE DONE BETWEEN
-        // CREATE AND START ???
-        if (sc != null) {
+      // ANOTHER DESIGN CONSIDERATION - SHOULD CONFIG APPLY BE DONE BETWEEN
+      // CREATE AND START ???
+      if (sc != null) {
         si.setConfig(sc);
         si.apply(sc);
-        } else {
-          log.error("could not fine %s config", serviceName);
-        }
+      } else {
+        log.error("could not fine %s config", serviceName);
+      }
 
-        if (si != null) {
-          if (si.getName().equals(name)) {
-            ret = si;
-          }
-          if (!si.isRunning()) {
-            si.startService(); // FIXME - although this is createServices() and
-          } // may require started peers - then it should
-            // just start
-//         }
+      if (si != null) {
+        if (si.getName().equals(name)) {
+          ret = si;
+        }
+        if (!si.isRunning()) {
+          si.startService(); // FIXME - although this is createServices() and
+        } // may require started peers - then it should
+          // just start
+        // }
       }
     }
 
@@ -2025,6 +2038,9 @@ public class Runtime extends Service implements MessageListener, ServiceLifeCycl
   static public ServiceInterface start(String name, String type) {
     // hand back immediately if a service with that name exists
     // and is running
+    if (name == null) {
+      return null;
+    }
 
     ServiceInterface si = null;
 
@@ -3889,6 +3905,11 @@ public class Runtime extends Service implements MessageListener, ServiceLifeCycl
   public String getConfigName() {
     return configName;
   }
+  
+  public void unsetConfigName() {
+    configName = null;
+  }
+
 
   /**
    * static wrapper around setConfigName - so it can be used in the same way as
@@ -4183,6 +4204,11 @@ public class Runtime extends Service implements MessageListener, ServiceLifeCycl
 
     broadcastState();
 
+  }
+  
+  public static void startConfigSet(String configDirName) {
+    loadConfigSet(configDirName);
+    start();
   }
 
   public static void loadConfigSet(String configDirName) {

@@ -1,20 +1,16 @@
 package org.myrobotlab.service;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.myrobotlab.framework.Service;
-import org.myrobotlab.io.FileIO;
 import org.myrobotlab.logging.Level;
 import org.myrobotlab.logging.LoggerFactory;
 import org.myrobotlab.logging.LoggingFactory;
-import org.myrobotlab.service.interfaces.ServoControl;
+import org.myrobotlab.service.config.InMoov2HeadConfig;
 import org.slf4j.Logger;
 
 /**
- * InMoovHead - This is the inmoov head service. This service controls the
+ * InMoovHead - This is the InMoov head service. This service controls the
  * servos for the following: jaw, eyeX, eyeY, rothead and neck.
  * 
  */
@@ -24,142 +20,112 @@ public class InMoov2Head extends Service {
 
   public final static Logger log = LoggerFactory.getLogger(InMoov2Head.class);
 
-  // peers
-  transient public ServoControl jaw;
-  transient public ServoControl eyeX;
-  transient public ServoControl eyeY;
-  transient public ServoControl rothead;
-  transient public ServoControl neck;
-  transient public ServoControl rollNeck;
-  transient public ServoControl eyelidLeft;
-  transient public ServoControl eyelidRight;
-
   public InMoov2Head(String n, String id) {
     super(n, id);
   }
 
-  public void blink() {
+  public void startService() {
+    super.startService();
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    Runtime.start(c.neck);
+    Runtime.start(c.jaw);
+    Runtime.start(c.rollNeck);
+    Runtime.start(c.rothead);
+    Runtime.start(c.eyeX);
+    Runtime.start(c.eyeY);
+  }
 
-    // TODO: clean stop autoblink if tracking ...
-    double tmpVelo = ThreadLocalRandom.current().nextInt(40, 150 + 1);
-    if (eyelidLeft != null)
-      eyelidLeft.setSpeed(tmpVelo);
-    if (eyelidRight != null)
-      eyelidRight.setSpeed(tmpVelo);
-    moveToBlocking(180, 180);
-    moveToBlocking(0, 0);
+  public void blink() {
+    // TODO: clean stop auto blink if tracking ...
+    double speed = ThreadLocalRandom.current().nextInt(40, 150 + 1);
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+
+    send(c.eyelidLeft, "setSpeed", speed);
+    send(c.eyelidRight, "setSpeed", speed);
+
+    // FIXME - why for heavens sake would you move blocking here
+    // that's just wrong
+    // moveToBlocking(180, 180);
+    // moveToBlocking(0, 0);
+    send(c.eyelidLeft, "moveTo", speed);
+    send(c.eyelidRight, "moveTo", speed);
   }
 
   public void enable() {
-    if (eyeX != null)
-      eyeX.enable();
-    if (eyeY != null)
-      eyeY.enable();
-    if (jaw != null)
-      jaw.enable();
-    if (rothead != null)
-      rothead.enable();
-    if (neck != null)
-      neck.enable();
-    if (rollNeck != null)
-      rollNeck.enable();
-    if (eyelidLeft != null)
-      eyelidLeft.enable();
-    if (eyelidRight != null)
-      eyelidRight.enable();
-
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.eyeX, "enable");
+    send(c.eyeY, "enable");
+    send(c.jaw, "enable");
+    send(c.rothead, "enable");
+    send(c.neck, "enable");
+    send(c.rollNeck, "enable");
+    send(c.eyelidLeft, "enable");
+    send(c.eyelidRight, "enable");
   }
 
   @Override
   public void broadcastState() {
-    if (rothead != null)
-      rothead.broadcastState();
-    if (rollNeck != null)
-      rollNeck.broadcastState();
-    if (neck != null)
-      neck.broadcastState();
-    if (eyeX != null)
-      eyeX.broadcastState();
-    if (eyeY != null)
-      eyeY.broadcastState();
-    if (jaw != null)
-      jaw.broadcastState();
-    if (eyelidLeft != null)
-      eyelidLeft.broadcastState();
-    if (eyelidRight != null)
-      eyelidRight.broadcastState();
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.eyeX, "broadcastState");
+    send(c.eyeY, "broadcastState");
+    send(c.jaw, "broadcastState");
+    send(c.rothead, "broadcastState");
+    send(c.neck, "broadcastState");
+    send(c.rollNeck, "broadcastState");
+    send(c.eyelidLeft, "broadcastState");
+    send(c.eyelidRight, "broadcastState");
   }
 
   public void stop() {
-    if (rothead != null)
-      rothead.stop();
-    if (neck != null)
-      neck.stop();
-    if (eyeX != null)
-      eyeX.stop();
-    if (eyeY != null)
-      eyeY.stop();
-    if (jaw != null)
-      jaw.stop();
-    if (rollNeck != null)
-      rollNeck.stop();
-    if (eyelidLeft != null)
-      eyelidLeft.stop();
-    if (eyelidRight != null)
-      eyelidRight.stop();
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.eyeX, "stop");
+    send(c.eyeY, "stop");
+    send(c.jaw, "stop");
+    send(c.rothead, "stop");
+    send(c.neck, "stop");
+    send(c.rollNeck, "stop");
+    send(c.eyelidLeft, "stop");
+    send(c.eyelidRight, "stop");
   }
 
   public void disable() {
     stop();
-    if (rothead != null)
-      rothead.disable();
-    if (neck != null)
-      neck.disable();
-    if (eyeX != null)
-      eyeX.disable();
-    if (eyeY != null)
-      eyeY.disable();
-    if (jaw != null)
-      jaw.disable();
-    if (rollNeck != null)
-      rollNeck.disable();
-    if (eyelidLeft != null)
-      eyelidLeft.disable();
-    if (eyelidRight != null)
-      eyelidRight.disable();
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.eyeX, "disable");
+    send(c.eyeY, "disable");
+    send(c.jaw, "disable");
+    send(c.rothead, "disable");
+    send(c.neck, "disable");
+    send(c.rollNeck, "disable");
+    send(c.eyelidLeft, "disable");
+    send(c.eyelidRight, "disable");
+  }
+
+  private Long getLastActivityTime(String name) {
+    try {
+      return (Long) sendBlocking(name, "getLastActivityTime");
+    } catch (Exception e) {
+      error(e);
+    }
+    return 0L;
   }
 
   public long getLastActivityTime() {
 
-    long lastActivityTime = Math.max(rothead.getLastActivityTime(), neck.getLastActivityTime());
-    lastActivityTime = Math.max(lastActivityTime, eyeX.getLastActivityTime());
-    lastActivityTime = Math.max(lastActivityTime, eyeY.getLastActivityTime());
-    lastActivityTime = Math.max(lastActivityTime, jaw.getLastActivityTime());
-    lastActivityTime = Math.max(lastActivityTime, rollNeck.getLastActivityTime());
-    lastActivityTime = Math.max(lastActivityTime, eyelidLeft.getLastActivityTime());
-    lastActivityTime = Math.max(lastActivityTime, eyelidRight.getLastActivityTime());
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+
+    long lastActivityTime = Math.max(getLastActivityTime(c.neck), getLastActivityTime(c.rothead));
+    lastActivityTime = Math.max(lastActivityTime, getLastActivityTime(c.eyeY));
+    lastActivityTime = Math.max(lastActivityTime, getLastActivityTime(c.eyeY));
+    lastActivityTime = Math.max(lastActivityTime, getLastActivityTime(c.rollNeck));
+    lastActivityTime = Math.max(lastActivityTime, getLastActivityTime(c.eyelidLeft));
+    lastActivityTime = Math.max(lastActivityTime, getLastActivityTime(c.eyelidRight));
     return lastActivityTime;
   }
 
-  @Deprecated /* use LangUtils */
-  public String getScript(String inMoovServiceName) {
-    return String.format(Locale.ENGLISH, "%s.moveHead(%.2f,%.2f,%.2f,%.2f,%.2f,%.2f)\n", inMoovServiceName, neck.getCurrentInputPos(), rothead.getCurrentInputPos(),
-        eyeX.getCurrentInputPos(), eyeY.getCurrentInputPos(), jaw.getCurrentInputPos(), rollNeck.getCurrentInputPos());
-  }
-
+  // FIXME - remove isValid() or test() - they do the same thing....
   public boolean isValid() {
-    if (rothead != null)
-      rothead.moveTo(rothead.getRest() + 2);
-    if (neck != null)
-      neck.moveTo(neck.getRest() + 2);
-    if (eyeX != null)
-      eyeX.moveTo(eyeX.getRest() + 2);
-    if (eyeY != null)
-      eyeY.moveTo(eyeY.getRest() + 2);
-    if (jaw != null)
-      jaw.moveTo(jaw.getRest() + 2);
-    if (rollNeck != null)
-      rollNeck.moveTo(rollNeck.getRest() + 2);
+    test();
     return true;
   }
 
@@ -173,21 +139,26 @@ public class InMoov2Head extends Service {
     log.info("object distance is {},rothead servo {},neck servo {} ", distance, rotation, colatitude);
   }
 
-  // FIXME !!! - this is a mess ... some Double some double ...
-  public void moveTo(double neck, double rothead) {
+  /**
+   * Move the head - null will not move a servo - do not use unboxed params
+   * again
+   * 
+   * @param neck
+   * @param rothead
+   */
+  public void moveTo(Double neck, Double rothead) {
     moveTo(neck, rothead, null, null, null, null);
   }
 
-  // TODO IK head moveTo ( neck + rollneck + rothead ? )
   public void moveTo(Double neck, Double rothead, Double rollNeck) {
     moveTo(neck, rothead, null, null, null, rollNeck);
   }
 
-  public void moveTo(double neck, double rothead, double eyeX, double eyeY) {
+  public void moveTo(Double neck, Double rothead, Double eyeX, Double eyeY) {
     moveTo(neck, rothead, eyeX, eyeY, null, null);
   }
 
-  public void moveTo(double neck, double rothead, double eyeX, double eyeY, double jaw) {
+  public void moveTo(Double neck, Double rothead, Double eyeX, Double eyeY, Double jaw) {
     moveTo(neck, rothead, eyeX, eyeY, jaw, null);
   }
 
@@ -195,51 +166,31 @@ public class InMoov2Head extends Service {
    * Move servos of the head - null is a none move
    * 
    * @param neckPos
-   *          p
    * @param rotheadPos
-   *          p
    * @param eyeXPos
-   *          p
    * @param eyeYPos
-   *          p
    * @param jawPos
-   *          p
    * @param rollNeckPos
-   *          p
-   * 
    */
   public void moveTo(Double neckPos, Double rotheadPos, Double eyeXPos, Double eyeYPos, Double jawPos, Double rollNeckPos) {
+
     if (log.isDebugEnabled()) {
       log.debug("head.moveTo {} {} {} {} {} {}", neckPos, rotheadPos, eyeXPos, eyeYPos, jawPos, rollNeckPos);
     }
-    if (Runtime.getService(getName() + ".rothead") != null && rotheadPos != null) {
-      ((ServoControl)Runtime.getService(getName() + ".rothead")).moveTo(rotheadPos);
-    }
-    if (Runtime.getService(getName() + ".neck") != null && neckPos != null) {
-      ((ServoControl)Runtime.getService(getName() + ".neck")).moveTo(neckPos);
-    }
-    if (Runtime.getService(getName() + ".eyeX") != null && eyeXPos != null) {
-      ((ServoControl)Runtime.getService(getName() + ".eyeX")).moveTo(eyeXPos);
-    }
-    if (Runtime.getService(getName() + ".eyeY") != null && eyeYPos != null) {
-      ((ServoControl)Runtime.getService(getName() + ".eyeY")).moveTo(eyeYPos);
-    }
-    if (Runtime.getService(getName() + ".jaw") != null &&  jawPos != null) {
-      ((ServoControl)Runtime.getService(getName() + ".jaw")).moveTo(jawPos);
-    }
-    
-    if (Runtime.getService(getName() + ".rollNeck") != null &&  rollNeckPos != null) {
-      ((ServoControl)Runtime.getService(getName() + ".rollNeck")).moveTo(rollNeckPos);
-    }
+
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.eyeX, "moveTo", eyeXPos);
+    send(c.eyeY, "moveTo", eyeYPos);
+    send(c.jaw, "moveTo", jawPos);
+    send(c.rothead, "moveTo", rotheadPos);
+    send(c.neck, "moveTo", neckPos);
+    send(c.rollNeck, "moveTo", rollNeckPos);
   }
 
   public void moveEyelidsTo(double eyelidleftPos, double eyelidrightPos) {
-    if (eyelidLeft != null) {
-      eyelidLeft.moveTo(eyelidleftPos);
-    }
-    if (eyelidRight != null) {
-      eyelidRight.moveTo(eyelidrightPos);
-    }
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.eyelidLeft, "moveTo", eyelidleftPos);
+    send(c.eyelidRight, "moveTo", eyelidrightPos);
   }
 
   public void moveToBlocking(double neck, double rothead) {
@@ -266,210 +217,129 @@ public class InMoov2Head extends Service {
   }
 
   public void waitTargetPos() {
-    if (neck != null) {
-      neck.waitTargetPos();
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    try {
+      sendBlocking(c.eyeX, "waitTargetPos");
+      sendBlocking(c.eyeY, "waitTargetPos");
+      sendBlocking(c.jaw, "waitTargetPos");
+      sendBlocking(c.rothead, "waitTargetPos");
+      sendBlocking(c.neck, "waitTargetPos");
+      sendBlocking(c.rollNeck, "waitTargetPos");
+    } catch (Exception e) {
+      error(e);
     }
-    if (rothead != null) {
-      rothead.waitTargetPos();
-    }
-    if (eyeX != null) {
-      eyeX.waitTargetPos();
-    }
-    if (eyeY != null) {
-      eyeY.waitTargetPos();
-    }
-    if (jaw != null) {
-      jaw.waitTargetPos();
-    }
-    if (rollNeck != null) {
-      rollNeck.waitTargetPos();
-    }
-  }
-
-  public void release() {
-    disable();
   }
 
   public void releaseService() {
     disable();
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    Runtime.release(c.neck);
+    Runtime.release(c.jaw);
+    Runtime.release(c.rollNeck);
+    Runtime.release(c.rothead);
+    Runtime.release(c.eyeX);
+    Runtime.release(c.eyeY);
+
     super.releaseService();
   }
 
   public void rest() {
+    // FIXME - ask Gael about the setSpeed ????
     // initial positions
     // setSpeed(1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
-    if (rothead != null) {
-      rothead.rest();
-    }
-    if (neck != null) {
-      neck.rest();
-    }
-    if (eyeX != null) {
-      eyeX.rest();
-    }
-    if (eyeY != null) {
-      eyeY.rest();
-    }
-    if (jaw != null) {
-      jaw.rest();
-    }
-    if (rollNeck != null) {
-      rollNeck.rest();
-    }
-    if (eyelidLeft != null) {
-      eyelidLeft.rest();
-    }
-    if (eyelidRight != null) {
-      eyelidRight.rest();
-    }
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.eyeX, "rest");
+    send(c.eyeY, "rest");
+    send(c.jaw, "rest");
+    send(c.rothead, "rest");
+    send(c.neck, "rest");
+    send(c.rollNeck, "rest");
+    send(c.eyelidLeft, "rest");
+    send(c.eyelidRight, "rest");
   }
 
   @Override
   public boolean save() {
     super.save();
-    if (rothead != null)
-      rothead.save();
-    if (neck != null)
-      neck.save();
-    if (eyeX != null)
-      eyeX.save();
-    if (eyeY != null)
-      eyeY.save();
-    if (jaw != null)
-      jaw.save();
-    if (rollNeck != null)
-      rollNeck.save();
-    if (eyelidLeft != null)
-      eyelidLeft.save();
-    if (eyelidRight != null)
-      eyelidRight.save();
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.eyeX, "save");
+    send(c.eyeY, "save");
+    send(c.jaw, "save");
+    send(c.rothead, "save");
+    send(c.neck, "save");
+    send(c.rollNeck, "save");
+    send(c.eyelidLeft, "save");
+    send(c.eyelidRight, "save");
     return true;
   }
 
-  @Deprecated
-  public boolean loadFile(String file) {
-    File f = new File(file);
-    Python p = (Python) Runtime.getService("python");
-    log.info("Loading  Python file {}", f.getAbsolutePath());
-    if (p == null) {
-      log.error("Python instance not found");
-      return false;
-    }
-    String script = null;
-    try {
-      script = FileIO.toString(f.getAbsolutePath());
-    } catch (IOException e) {
-      log.error("IO Error loading file : ", e);
-      return false;
-    }
-    // evaluate the scripts in a blocking way.
-    boolean result = p.exec(script, true);
-    if (!result) {
-      log.error("Error while loading file {}", f.getAbsolutePath());
-      return false;
-    } else {
-      log.debug("Successfully loaded {}", f.getAbsolutePath());
-    }
-    return true;
+  public void setAutoDisable(Boolean rothead, Boolean neck, Boolean rollNeck) {
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.rothead, "setAutoDisable", rothead);
+    send(c.neck, "setAutoDisable", neck);
+    send(c.rollNeck, "setAutoDisable", rollNeck);
   }
 
-  public void setAutoDisable(Boolean rotheadParam, Boolean neckParam, Boolean rollNeckParam) {
-    if (rothead != null)
-      rothead.setAutoDisable(rotheadParam);
-    if (rollNeck != null)
-      rollNeck.setAutoDisable(rollNeckParam);
-    if (neck != null)
-      neck.setAutoDisable(neckParam);
-  }
-
-  public void setAutoDisable(Boolean param) {
-    if (rothead != null)
-      rothead.setAutoDisable(param);
-    if (neck != null)
-      neck.setAutoDisable(param);
-    if (eyeX != null)
-      eyeX.setAutoDisable(param);
-    if (eyeY != null)
-      eyeY.setAutoDisable(param);
-    if (jaw != null)
-      jaw.setAutoDisable(param);
-    if (rollNeck != null)
-      rollNeck.setAutoDisable(param);
-    if (eyelidLeft != null)
-      eyelidLeft.setAutoDisable(param);
-    if (eyelidRight != null)
-      eyelidRight.setAutoDisable(param);
+  public void setAutoDisable(Boolean b) {
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.eyeX, "setAutoDisable", b);
+    send(c.eyeY, "setAutoDisable", b);
+    send(c.jaw, "setAutoDisable", b);
+    send(c.rothead, "setAutoDisable", b);
+    send(c.neck, "setAutoDisable", b);
+    send(c.rollNeck, "setAutoDisable", b);
+    send(c.eyelidLeft, "setAutoDisable", b);
+    send(c.eyelidRight, "setAutoDisable", b);
   }
 
   public void setLimits(double headXMin, double headXMax, double headYMin, double headYMax, double eyeXMin, double eyeXMax, double eyeYMin, double eyeYMax, double jawMin,
       double jawMax, double rollNeckMin, double rollNeckMax) {
-
-    if (rothead != null)
-      rothead.setMinMaxOutput(headXMin, headXMax);
-    if (neck != null)
-      neck.setMinMaxOutput(headYMin, headYMax);
-    if (eyeX != null)
-      eyeX.setMinMaxOutput(eyeXMin, eyeXMax);
-    if (eyeY != null)
-      eyeY.setMinMaxOutput(eyeYMin, eyeYMax);
-    if (jaw != null)
-      jaw.setMinMaxOutput(jawMin, jawMax);
-    if (rollNeck != null)
-      rollNeck.setMinMaxOutput(rollNeckMin, rollNeckMax);
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.eyeX, "setMinMaxOutput", eyeXMin, eyeXMax);
+    send(c.eyeY, "setMinMaxOutput", eyeYMin, eyeYMax);
+    send(c.jaw, "setMinMaxOutput", jawMin, jawMax);
+    send(c.rothead, "setMinMaxOutput", headXMin, headXMax);
+    send(c.neck, "setMinMaxOutput", headYMin, headYMax);
+    send(c.rollNeck, "setMinMaxOutput", rollNeckMin, rollNeckMax);
   }
 
   public void setSpeed(Double headXSpeed, Double headYSpeed, Double eyeXSpeed, Double eyeYSpeed, Double jawSpeed) {
     setSpeed(headXSpeed, headYSpeed, eyeXSpeed, eyeYSpeed, jawSpeed, null);
-
   }
 
-  public void setSpeed(Double headXSpeed, Double headYSpeed, Double eyeXSpeed, Double eyeYSpeed, Double jawSpeed, Double rollNeckSpeed) {
-    log.debug(String.format("%s setSpeed %.2f %.2f %.2f %.2f %.2f %.2f", getName(), headXSpeed, headYSpeed, eyeXSpeed, eyeYSpeed, jawSpeed, rollNeckSpeed));
-    if (rothead != null)
-      rothead.setSpeed(headXSpeed);
-    if (neck != null)
-      neck.setSpeed(headYSpeed);
-    if (eyeX != null)
-      eyeX.setSpeed(eyeXSpeed);
-    if (eyeY != null)
-      eyeY.setSpeed(eyeYSpeed);
-    if (jaw != null)
-      jaw.setSpeed(jawSpeed);
-    if (rollNeck != null)
-      rollNeck.setSpeed(rollNeckSpeed);
+  public void setSpeed(Double headXSpeed, Double headYSpeed, Double eyeX, Double eyeY, Double jaw, Double rollNeckSpeed) {
+    log.debug(String.format("%s setSpeed %.2f %.2f %.2f %.2f %.2f %.2f", getName(), headXSpeed, headYSpeed, eyeX, eyeY, jaw, rollNeckSpeed));
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.eyeX, "setSpeed", eyeX);
+    send(c.eyeY, "setSpeed", eyeY);
+    send(c.jaw, "setSpeed", jaw);
+    send(c.rothead, "setSpeed", headXSpeed);
+    send(c.neck, "setSpeed", headYSpeed);
+    send(c.rollNeck, "setSpeed", rollNeckSpeed);
   }
 
   public void fullSpeed() {
-    if (rothead != null)
-      rothead.fullSpeed();
-    if (neck != null)
-      neck.fullSpeed();
-    if (eyeX != null)
-      eyeX.fullSpeed();
-    if (eyeY != null)
-      eyeY.fullSpeed();
-    if (jaw != null)
-      jaw.fullSpeed();
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.eyeX, "fullSpeed");
+    send(c.eyeY, "fullSpeed");
+    send(c.jaw, "fullSpeed");
+    send(c.rothead, "fullSpeed");
+    send(c.neck, "fullSpeed");
+    send(c.rollNeck, "fullSpeed");
+    send(c.eyelidLeft, "fullSpeed");
+    send(c.eyelidRight, "fullSpeed");
   }
 
   public void test() {
-    if (rothead != null)
-      rothead.moveTo(rothead.getCurrentInputPos() + 2);
-    if (neck != null)
-      neck.moveTo(neck.getCurrentInputPos() + 2);
-    if (eyeX != null)
-      eyeX.moveTo(eyeX.getCurrentInputPos() + 2);
-    if (eyeY != null)
-      eyeY.moveTo(eyeY.getCurrentInputPos() + 2);
-    if (jaw != null)
-      jaw.moveTo(jaw.getCurrentInputPos() + 2);
-    if (rollNeck != null)
-      rollNeck.moveTo(rollNeck.getCurrentInputPos() + 2);
-    if (eyelidLeft != null)
-      eyelidLeft.moveTo(179.0);
-    sleep(300);
-    if (eyelidRight != null)
-      eyelidRight.moveToBlocking(1.0);
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.eyeX, "moveInc", 2);
+    send(c.eyeY, "moveInc", 2);
+    send(c.jaw, "moveInc", 2);
+    send(c.rothead, "moveInc", 2);
+    send(c.neck, "moveInc", 2);
+    send(c.rollNeck, "moveInc", 2);
+    send(c.eyelidLeft, "moveInc", 2);
+    send(c.eyelidRight, "moveInc", 2);
   }
 
   /**
@@ -478,69 +348,61 @@ public class InMoov2Head extends Service {
    * @param b
    */
   public void autoBlink(boolean b) {
-
+    if (b) {
+      addTask(1500, "blink");
+    } else {
+      purgeTask("blink");
+    }
   }
 
   @Deprecated /* use setSpeed */
   public void setVelocity(Double headXSpeed, Double headYSpeed, Double eyeXSpeed, Double eyeYSpeed, Double jawSpeed) {
-
-    setVelocity(headXSpeed, headYSpeed, eyeXSpeed, eyeYSpeed, jawSpeed, null);
-
+    setSpeed(headXSpeed, headYSpeed, eyeXSpeed, eyeYSpeed, jawSpeed, null);
   }
 
   @Deprecated /* use setSpeed */
   public void setVelocity(Double headXSpeed, Double headYSpeed, Double eyeXSpeed, Double eyeYSpeed, Double jawSpeed, Double rollNeckSpeed) {
-    if (log.isDebugEnabled()) {
-      log.debug(String.format("%s setVelocity %.2f %.2f %.2f %.2f %.2f %.2f", getName(), headXSpeed, headYSpeed, eyeXSpeed, eyeYSpeed, jawSpeed, rollNeckSpeed));
-    }
-    if (rothead != null)
-      rothead.setSpeed(headXSpeed);
-    if (neck != null)
-      neck.setSpeed(headYSpeed);
-    if (eyeX != null)
-      eyeX.setSpeed(eyeXSpeed);
-    if (eyeY != null)
-      eyeY.setSpeed(eyeYSpeed);
-    if (jaw != null)
-      jaw.setSpeed(jawSpeed);
-    if (rollNeck != null)
-      rollNeck.setSpeed(rollNeckSpeed);
+    setSpeed(headXSpeed, headYSpeed, eyeXSpeed, eyeYSpeed, jawSpeed, rollNeckSpeed);
+  }
+
+  public void setPins(Integer neckPin, Integer rotheadPin, Integer eyeXPin, Integer eyeYPin, Integer jawPin, Integer rollNeckPin) {
+    InMoov2HeadConfig c = (InMoov2HeadConfig) config;
+    send(c.eyeX, "setPin", eyeXPin);
+    send(c.eyeY, "setSpeed", eyeYPin);
+    send(c.jaw, "setSpeed", jawPin);
+    send(c.rothead, "setSpeed", rotheadPin);
+    send(c.neck, "setSpeed", neckPin);
+    send(c.rollNeck, "setSpeed", rollNeckPin);
   }
 
   public static void main(String[] args) {
     try {
-      LoggingFactory.init(Level.INFO);
+      LoggingFactory.init(Level.DEBUG);
 
-      String leftPort = "COM3";
+      Runtime.start("python", "Python");
 
-//      VirtualArduino vleft = (VirtualArduino) Runtime.start("vleft", "VirtualArduino");
-//      vleft.connect("COM3");
-//      Runtime.start("gui", "SwingGui");
+      Servo s1 = (Servo) Runtime.start("s1", "Servo");
+      // FIXME - this broke it
+      s1.moveTo(0);
+      s1.setSpeed(3);
+      s1.moveTo(180);
+      // Service.sleep(200);
+      s1.waitTargetPos();
 
       InMoov2Head head = (InMoov2Head) Runtime.start("head", "InMoov2Head");
+      Long x = head.getLastActivityTime();
 
-      //log.info(head.getScript("i01"));
+      head.setSpeed(3.0, 3.0, 3.0, 3.0, 3.0);
+      head.moveTo(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+      head.moveTo(180.0, 180.0, 180.0, 180.0, 180.0, 180.0);
+
+      Runtime.start("webgui", "WebGui");
+
+      // log.info(head.getScript("i01"));
 
     } catch (Exception e) {
       log.error("main threw", e);
     }
   }
-
-  public void setPins(Integer neckPin, Integer rotheadPin, Integer eyeXPin, Integer eyeYPin, Integer jawPin, Integer rollNeckPin) {
-    if (neck != null)
-      neck.setPin(neckPin);
-    if (rothead != null)
-      rothead.setPin(rotheadPin);
-    if (eyeX != null)
-      eyeX.setPin(eyeXPin);
-    if (eyeY != null)
-      eyeY.setPin(eyeYPin);
-    if (jaw != null)
-      jaw.setPin(jawPin);
-    if (rollNeck != null)
-      rollNeck.setPin(rollNeckPin);
-  }
-
-
 
 }

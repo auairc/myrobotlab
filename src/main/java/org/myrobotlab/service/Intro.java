@@ -13,6 +13,7 @@ import org.myrobotlab.framework.repo.Repo;
 import org.myrobotlab.io.FileIO;
 import org.myrobotlab.logging.LoggerFactory;
 import org.myrobotlab.logging.LoggingFactory;
+import org.myrobotlab.service.config.WebGuiConfig;
 import org.slf4j.Logger;
 
 public class Intro extends Service {
@@ -116,14 +117,66 @@ public class Intro extends Service {
 
       // Runtime.main(new String[]{"--config", "i01-9"});
       // Runtime.start("runtime", "Runtime"); i
-      WebGui webgui = (WebGui)Runtime.create("webgui", "WebGui");
-      webgui.autoStartBrowser(false);
-      webgui.startService();
+
+      WebGuiConfig config = (WebGuiConfig)Runtime.load("webgui","WebGui");
+      config.autoStartBrowser = false;
+      Runtime.start("webgui", "WebGui");
       
-      Runtime.start("intro", "Intro");
-      //Runtime.start("python", "Python");
+      Runtime.load("i01","InMoov2");
+
+      // Runtime.start("intro", "Intro");
+
+//      Runtime.loadConfigSet("track-inmoov");
+//      JUNIT - Runtime.load()      
+//      Runtime.start();
+      
+      // JUNIT - load a full set - verify it was all loaded
+      // JUNIT - verify a re-load - that it replaces - since filesystem is the highest priority
+      
+      // Runtime.load("track", "Tracking");
+      // Runtime.start("track", "Tracking");
+      
+      // JUNIT - make sure a config set with peers can be saved and re-loaded
+
+      // Runtime.load("i01", "InMoov2");
+      
+      // Runtime.start("i01.rightArm.bicep");
+      
+      // JUNIT verify priority yml over default
+      
+      Runtime runtime = Runtime.getInstance();
+      log.info("service peers  count {}", runtime.getPlan().getPeers().size());
+      log.info("service config count {}", runtime.getPlan().getConfig().size());
+      
+      // JUNIT - this causes problem ... as expected - it doesn't set the i01.head reference
+      // because "of course" - i01 is not here
+      // Runtime.start("i01.head");
+//      InMoov2 i01 = (InMoov2)Runtime.start("i01");
+//      i01.startSimulator();
+//      i01.startServos();
+      // i01.startAll();
+      
+      // JUNIT Test - test yml precedence over current plan
+      
+      // getActive()
+      // getStarted()
+      
+      // Runtime.start("i01", "InMoov2");
+      
+      // Runtime.load("mega", "Arduino");
+      // Runtime.start("mega", "Arduino");
+
+      
+//      Runtime.start("intro", "Intro");
+//      
+//      Runtime.setConfig("_test-01");
+//      Runtime.load("runtime");
+      // Runtime.load("mega");
+      // Runtime.start("python", "Python");
       // Runtime.start("mega", "Arduino");
       // Runtime.start("ada", "Adafruit16CServoDriver");
+      
+      // Runtime.start("i01", "Tracking");
       
       boolean done = true;
       if (done) {
@@ -150,12 +203,12 @@ public class Intro extends Service {
       Runtime.create("webgui", "WebGui");
       Runtime.setConfig("InMoov2_FingerStarter");
 
-      Runtime.create("i01.chatBot");
-      Runtime.load("i01.chatBot");
-      Runtime.start("i01.chatBot");
-
-      Runtime.start("intro", "Intro");
-      Runtime.start("python", "Python");
+//      Runtime.create("i01.chatBot");
+//      Runtime.load("i01.chatBot");
+//      Runtime.start("i01.chatBot");
+//
+//      Runtime.start("intro", "Intro");
+//      Runtime.start("python", "Python");
 
     } catch (Exception e) {
       log.error("main threw", e);

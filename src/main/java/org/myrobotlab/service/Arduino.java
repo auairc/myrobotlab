@@ -12,7 +12,6 @@ import java.util.Base64;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -39,7 +38,6 @@ import org.myrobotlab.math.interfaces.Mapper;
 import org.myrobotlab.sensor.EncoderData;
 import org.myrobotlab.service.abstracts.AbstractMicrocontroller;
 import org.myrobotlab.service.config.ArduinoConfig;
-import org.myrobotlab.service.config.SerialConfig;
 import org.myrobotlab.service.config.ServiceConfig;
 import org.myrobotlab.service.data.DeviceMapping;
 import org.myrobotlab.service.data.PinData;
@@ -175,7 +173,9 @@ public class Arduino extends AbstractMicrocontroller implements I2CBusController
   /**
    * Serial service - the Arduino's serial connection
    */
-  transient Serial serial;
+  // transient Serial serialService;
+  
+  String serial = null;
 
   /**
    * virtual arduino for testing purposes
@@ -516,12 +516,23 @@ public class Arduino extends AbstractMicrocontroller implements I2CBusController
   @Override
   public void connect(String port, int rate, int databits, int stopbits, int parity) {
 
+    if (port == null) {
+      warn("%s attempted to connect with a null port", getName());
+      return;
+    }
+    
+    if (serialService == null) {
+      serialService = (Serial) startPeer(serial);
+      msg = new Msg(this, serialService);
+      serialService.addByteListener(this);
+    }
+
     // test to see if we've been started. the serial might be null
     this.port = port;
 
     try {
 
-      if (isConnected() && port.equals(serial.getPortName())) {
+      if (isConnected() && port.equals(serialService.getPortName())) {
         log.info("already connected to port {}", port);
         return;
       }
@@ -533,7 +544,7 @@ public class Arduino extends AbstractMicrocontroller implements I2CBusController
         virtual.connect(port);
       }
 
-      serial.connect(port, rate, databits, stopbits, parity);
+      serialService.connect(port, rate, databits, stopbits, parity);
 
       // most likely on a real board this send will never get to
       // mrlcomm - because the board is not ready - but it doesnt hurt
@@ -575,11 +586,11 @@ public class Arduino extends AbstractMicrocontroller implements I2CBusController
         Integer version = boardInfo.getVersion();
 
         if (version == null) {
-          error("%s did not get response from arduino....", serial.getPortName());
+          error("%s did not get response from arduino....", serialService.getPortName());
         } else if (!version.equals(MRLCOMM_VERSION)) {
           error("MrlComm.ino responded with version %s expected version is %s", version, MRLCOMM_VERSION);
         } else {
-          info("%s connected on %s responded version %s ... goodtimes...", serial.getName(), serial.getPortName(), version);
+          info("%s connected on %s responded version %s ... goodtimes...", serialService.getName(), serialService.getPortName(), version);
         }
       } else {
         log.error("board info is null ! - has MrlComm.ino been loaded ?");
@@ -768,8 +779,8 @@ public class Arduino extends AbstractMicrocontroller implements I2CBusController
     // boardInfo is not valid after disconnect
     // because we might be connecting to a different Arduino
     // boardInfo.reset();
-    if (serial != null) {
-      serial.disconnect();
+    if (serialService != null) {
+      serialService.disconnect();
     }
     broadcastState();
   }
@@ -1128,13 +1139,13 @@ public class Arduino extends AbstractMicrocontroller implements I2CBusController
   }
 
   public String getPortName() {
-    return serial.getPortName();
+    return serialService.getPortName();
   }
 
   @Override
   public List<String> getPortNames() {
-    if (serial != null) {
-      return serial.getPortNames();
+    if (serialService != null) {
+      return serialService.getPortNames();
     }
     return new ArrayList<String>();
   }
@@ -1152,7 +1163,7 @@ public class Arduino extends AbstractMicrocontroller implements I2CBusController
    * @return - serial service
    */
   public Serial getSerial() {
-    return serial;
+    return serialService;
   }
 
   /**
@@ -1285,17 +1296,6 @@ public class Arduino extends AbstractMicrocontroller implements I2CBusController
     }
   }
 
-  private void initSerial() {
-    if (msg == null) {
-      serial = (Serial) startPeer("serial");
-      msg = new Msg(this, serial);
-      serial.addByteListener(this);
-    } else {
-      // TODO: figure out why this gets called so often.
-      log.info("Init serial we already have a msg class.");
-    }
-  }
-
   @Override
   public boolean isAttached(Attachable service) {
     return getAttached().contains(service.getName());
@@ -1309,7 +1309,7 @@ public class Arduino extends AbstractMicrocontroller implements I2CBusController
   @Override
   public boolean isConnected() {
     // include that we must have gotten a valid MrlComm version number.
-    if (serial != null && serial.isConnected() && boardInfo != null && boardInfo.getVersion() != null) {
+    if (serialService != null && serialService.isConnected() && boardInfo != null && boardInfo.getVersion() != null) {
       return true;
     }
     // just to force serial arduino conected if it is a serialX com
@@ -2129,7 +2129,7 @@ public class Arduino extends AbstractMicrocontroller implements I2CBusController
    */
   @Override
   public void write(int address, int value) {
-    info("write (%d,%d) to %s", address, value, serial.getName());
+    info("write (%d,%d)", address, value);
     PinDefinition pinDef = getPin(address);
     pinMode(address, "OUTPUT");
     if (pinDef.isPwm() && value > 1) { // CHEESEY HACK !!
@@ -2146,7 +2146,7 @@ public class Arduino extends AbstractMicrocontroller implements I2CBusController
   }
 
   public void ackTimeout() {
-    log.warn("Ack Timeout seen.  TODO: consider resetting the com port {}, reconnecting and re syncing all devices.", port);
+    log.warn("{} Ack Timeout seen.  TODO: consider resetting the com port {}, reconnecting and re syncing all devices.", getName(), port);
   }
 
   public void publishMrlCommBegin(Integer version) {
@@ -2241,28 +2241,41 @@ public class Arduino extends AbstractMicrocontroller implements I2CBusController
     ArduinoConfig config = new ArduinoConfig();
     config.port = port;
     config.connect = isConnected();
+    config.serial = serial;
     return config;
   }
 
   @Override
-  public ServiceConfig load(ServiceConfig c) {
+  public ServiceConfig apply(ServiceConfig c) {
     ArduinoConfig config = (ArduinoConfig) c;
+    
+    serial = config.serial;
 
-    if (config.serial != null) {
-      // FIXME THIS IS NOT GOOD - BUT NEEDED
-      serial = (Serial) Runtime.start(config.serial, "Serial");
-    }
-
-    if (config.port != null) {
-      connect(config.port);
-    }
+    // connecting is done in startService()
+    // after serial is properly initialized
+    
     return c;
   }
   
-  @Override
+    @Override
   public void startService() {
     super.startService();
-    initSerial();
+    
+    if (msg == null) {
+      serialService = (Serial) startPeer("serial");
+      msg = new Msg(this, serialService);
+      serialService.addByteListener(this);
+    } else {
+      // TODO: figure out why this gets called so often.
+      log.info("Init serial we already have a msg class.");
+    }    
+    
+    ArduinoConfig c = (ArduinoConfig)config;
+    
+    if (c.connect && c.port != null) {
+      connect(c.port);
+    }
+    
   }  
 
   /**

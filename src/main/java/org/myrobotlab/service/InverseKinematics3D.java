@@ -296,7 +296,7 @@ public class InverseKinematics3D extends Service implements IKJointAnglePublishe
 
     InverseKinematics3D inversekinematics = (InverseKinematics3D) Runtime.start("ik3d", "InverseKinematics3D");
     // InverseKinematics3D inversekinematics = new InverseKinematics3D("iksvc");
-    inversekinematics.setCurrentArm(arm, InMoov2Arm.getDHRobotArm("i01", "left"));
+    // inversekinematics.setCurrentArm(arm, InMoov2Arm.getDHRobotArm("i01", "left"));
     //
     // inversekinematics.getCurrentArm(arm).setIk3D(inversekinematics);
     // Create a new DH Arm.. simpler for initial testing.

@@ -1,25 +1,8 @@
 package org.myrobotlab.service;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-
 import org.myrobotlab.framework.Service;
-import org.myrobotlab.framework.interfaces.ServiceInterface;
-import org.myrobotlab.io.FileIO;
-import org.myrobotlab.kinematics.DHLink;
-import org.myrobotlab.kinematics.DHRobotArm;
 import org.myrobotlab.logging.LoggerFactory;
-import org.myrobotlab.math.MathUtils;
-import org.myrobotlab.service.interfaces.IKJointAngleListener;
 import org.myrobotlab.service.config.InMoov2ArmConfig;
-import org.myrobotlab.service.config.ServiceConfig;
-import org.myrobotlab.service.config.ServoConfig;
-import org.myrobotlab.service.interfaces.ServoControl;
 import org.slf4j.Logger;
 
 /**
@@ -35,76 +18,12 @@ import org.slf4j.Logger;
  * startPeers() does
  *
  */
-public class InMoov2Arm extends Service implements IKJointAngleListener {
+public class InMoov2Arm extends
+    Service /* implements IKJointAngleListener - FIXME needs more design */ {
 
   public final static Logger log = LoggerFactory.getLogger(InMoov2Arm.class);
 
   private static final long serialVersionUID = 1L;
-
-  public static DHRobotArm getDHRobotArm(String name, String side) {
-
-    // TODO: specify this correctly and document the reference frames!
-    DHRobotArm arm = new DHRobotArm();
-    // d , r, theta , alpha
-
-    // HashMap<String, Double> calibMap = new HashMap<String, Double>();
-    // calibMap.put("i01.leftArm.omoplate", 90.0);
-    // calibMap.put("i01.leftArm.shoulder", -90.0+45);
-    // calibMap.put("i01.leftArm.rotate", 0.0);
-    // calibMap.put("i01.leftArm.bicep", -90.0);
-
-    // TODO: the DH links should take into account the encoder offsets and
-    // calibration maps
-    DHLink link1 = new DHLink(String.format("%s.%sArm.omoplate", name, side), 0, 40, MathUtils.degToRad(-90), MathUtils.degToRad(-90));
-    // dh model + 90 degrees = real
-    link1.setMin(MathUtils.degToRad(-90));
-    link1.setMax(MathUtils.degToRad(0));
-    link1.setOffset(90);
-
-    // -80 vs +80 difference between left/right arm.
-    double shoulderWidth = 80;
-    if (side.equalsIgnoreCase("right")) {
-      // TODO: there are probably other differnces between the 2 arms.
-      shoulderWidth = -80;
-    }
-    DHLink link2 = new DHLink(String.format("%s.%sArm.shoulder", name, side), shoulderWidth, 0, MathUtils.degToRad(90), MathUtils.degToRad(90));
-    // TODO: this is actually 90 to -90 ? validate if inverted.
-    // this link is inverted :-/
-    link2.setMin(MathUtils.degToRad(-90));
-    link2.setMax(MathUtils.degToRad(90));
-    link2.setOffset(-45);
-
-    DHLink link3 = new DHLink(String.format("%s.%sArm.rotate", name, side), 280, 0, MathUtils.degToRad(0), MathUtils.degToRad(90));
-    // TODO: check if this is inverted. i think it is.
-    link3.setMin(MathUtils.degToRad(-90));
-    link3.setMax(MathUtils.degToRad(90));
-    link3.setOffset(0);
-
-    DHLink link4 = new DHLink(String.format("%s.%sArm.bicep", name, side), 0, 280, MathUtils.degToRad(90), MathUtils.degToRad(0));
-    // TODO: this is probably inverted? should be 90 to 0...
-    link4.setMin(MathUtils.degToRad(90));
-    link4.setMax(MathUtils.degToRad(180));
-    link4.setOffset(-90);
-
-    arm.addLink(link1);
-    arm.addLink(link2);
-    arm.addLink(link3);
-    arm.addLink(link4);
-
-    return arm;
-  }
-
-  /**
-   * peer services FIXME - framework should always - startPeers() unless
-   * configured not to
-   */
-  transient public ServoControl bicep;
-
-  transient public ServoControl omoplate;
-
-  transient public ServoControl rotate;
-
-  transient public ServoControl shoulder;
 
   public InMoov2Arm(String n, String id) throws Exception {
     super(n, id);
@@ -113,99 +32,74 @@ public class InMoov2Arm extends Service implements IKJointAngleListener {
   @Override
   public void startService() {
     super.startService();
-    bicep = (ServoControl)startPeer("bicep");
-    rotate = (ServoControl)startPeer("rotate");
-    shoulder = (ServoControl)startPeer("shoulder");
-    omoplate = (ServoControl)startPeer("omoplate");
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+    Runtime.start(c.bicep);
+    Runtime.start(c.rotate);
+    Runtime.start(c.shoulder);
+    Runtime.start(c.omoplate);
   }
 
   @Override
   public void broadcastState() {
     super.broadcastState();
-    if (bicep != null)
-      bicep.broadcastState();
-    if (rotate != null)
-      rotate.broadcastState();
-    if (shoulder != null)
-      shoulder.broadcastState();
-    if (omoplate != null)
-      omoplate.broadcastState();
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+    send(c.bicep, "broadcastState");
+    send(c.rotate, "broadcastState");
+    send(c.shoulder, "broadcastState");
+    send(c.omoplate, "broadcastState");
   }
 
   public void disable() {
-    if (bicep != null)
-      bicep.disable();
-    if (rotate != null)
-      rotate.disable();
-    if (shoulder != null)
-      shoulder.disable();
-    if (omoplate != null)
-      omoplate.disable();
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+    send(c.bicep, "disable");
+    send(c.rotate, "disable");
+    send(c.shoulder, "disable");
+    send(c.omoplate, "disable");
   }
 
   public void enable() {
-    if (bicep != null)
-      bicep.enable();
-    if (rotate != null)
-      rotate.enable();
-    if (shoulder != null)
-      shoulder.enable();
-    if (omoplate != null)
-      omoplate.enable();
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+    send(c.bicep, "enable");
+    send(c.rotate, "enable");
+    send(c.shoulder, "enable");
+    send(c.omoplate, "enable");
   }
 
   public void fullSpeed() {
-    if (bicep != null)
-      bicep.fullSpeed();
-    if (rotate != null)
-      rotate.fullSpeed();
-    if (shoulder != null)
-      shoulder.fullSpeed();
-    if (omoplate != null)
-      omoplate.fullSpeed();
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+    send(c.bicep, "fullSpeed");
+    send(c.rotate, "fullSpeed");
+    send(c.shoulder, "fullSpeed");
+    send(c.omoplate, "fullSpeed");
   }
 
-  public ServoControl getBicep() {
-    return bicep;
+  private Long getLastActivityTime(String name) {
+    try {
+      return (Long) sendBlocking(name, "getLastActivityTime");
+    } catch (Exception e) {
+      error(e);
+    }
+    return 0L;
   }
 
   public long getLastActivityTime() {
-    long lastActivityTime = Math.max(bicep.getLastActivityTime(), rotate.getLastActivityTime());
-    lastActivityTime = Math.max(lastActivityTime, shoulder.getLastActivityTime());
-    lastActivityTime = Math.max(lastActivityTime, omoplate.getLastActivityTime());
+
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+
+    long lastActivityTime = Math.max(getLastActivityTime(c.bicep), getLastActivityTime(c.rotate));
+    lastActivityTime = Math.max(lastActivityTime, getLastActivityTime(c.shoulder));
+    lastActivityTime = Math.max(lastActivityTime, getLastActivityTime(c.omoplate));
     return lastActivityTime;
-  }
-
-  public ServoControl getOmoplate() {
-    return omoplate;
-  }
-
-  public ServoControl getRotate() {
-    return rotate;
-  }
-
-  @Deprecated /* use UtilLang classes */
-  public String getScript(String inMoovServiceName) {
-    // FIXME - this is cheesy
-    String side = inMoovServiceName.contains("left") ? "left" : "right";
-    return String.format(Locale.ENGLISH, "%s.moveArm(\"%s\",%.2f,%.2f,%.2f,%.2f)\n", inMoovServiceName, side, bicep.getCurrentInputPos(), rotate.getCurrentInputPos(),
-        shoulder.getCurrentInputPos(), omoplate.getCurrentInputPos());
-  }
-
-  public ServoControl getShoulder() {
-    return shoulder;
   }
 
   public void moveTo(Double bicepPos, Double rotatePos, Double shoulderPos, Double omoplatePos) {
     log.debug("{} moveTo {} {} {} {}", getName(), bicepPos, rotatePos, shoulderPos, omoplatePos);
-    if (bicep != null)
-      bicep.moveTo(bicepPos);
-    if (rotate != null)
-      rotate.moveTo(rotatePos);
-    if (shoulder != null)
-      shoulder.moveTo(shoulderPos);
-    if (omoplate != null)
-      omoplate.moveTo(omoplatePos);
+
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+    send(c.bicep, "moveTo", bicepPos);
+    send(c.rotate, "moveTo", rotatePos);
+    send(c.shoulder, "moveTo", shoulderPos);
+    send(c.omoplate, "moveTo", omoplatePos);
   }
 
   public void moveToBlocking(double bicep, double rotate, double shoulder, double omoplate) {
@@ -215,74 +109,20 @@ public class InMoov2Arm extends Service implements IKJointAngleListener {
     log.info("end {} moveToBlocking", getName());
   }
 
-  @Override
-  public void onJointAngles(Map<String, Double> angleMap) {
-    // We should walk though our list of servos and see if
-    // the map has it.. if so .. move to it!
-    // Peers p = InMoovArm.getPeers(getName()).getPeers("Servo");
-    // TODO: look up the mapping for all the servos in the arm.
-
-    // we map the servo 90 degrees to be 0 degrees.
-    HashMap<String, Double> phaseShiftMap = new HashMap<String, Double>();
-    // phaseShiftMap.put("omoplate", 90);
-    // Harry's omoplate is +90 degrees from Gaels InMoov..
-    // These are for the encoder offsets.
-    // these map between the reference frames of the dh model & the actual arm.
-    // (calibration)
-    phaseShiftMap.put("omoplate", 90.0);
-    phaseShiftMap.put("shoulder", 90.0);
-    phaseShiftMap.put("rotate", -450.0);
-    phaseShiftMap.put("bicep", 90.0);
-
-    HashMap<String, Double> gainMap = new HashMap<String, Double>();
-    gainMap.put("omoplate", 1.0);
-    gainMap.put("shoulder", -1.0);
-    gainMap.put("rotate", -1.0);
-    gainMap.put("bicep", -1.0);
-
-    ArrayList<String> servos = new ArrayList<String>();
-    servos.add("omoplate");
-    servos.add("shoulder");
-    servos.add("rotate");
-    servos.add("bicep");
-    for (String s : servos) {
-      if (angleMap.containsKey(s)) {
-        if ("omoplate".equals(s)) {
-          Double angle = (gainMap.get(s) * angleMap.get(s) + phaseShiftMap.get(s)) % 360.0;
-          if (angle < 0) {
-            angle += 360;
-          }
-          omoplate.moveTo(angle);
-        }
-        if ("shoulder".equals(s)) {
-          Double angle = (gainMap.get(s) * angleMap.get(s) + phaseShiftMap.get(s)) % 360.0;
-          if (angle < 0) {
-            angle += 360;
-          }
-          shoulder.moveTo(angle);
-        }
-        if ("rotate".equals(s)) {
-          Double angle = (gainMap.get(s) * angleMap.get(s) + phaseShiftMap.get(s)) % 360.0;
-          if (angle < 0) {
-            angle += 360;
-          }
-          rotate.moveTo(angle);
-        }
-        if ("bicep".equals(s)) {
-          Double angle = (gainMap.get(s) * angleMap.get(s) + phaseShiftMap.get(s)) % 360.0;
-          bicep.moveTo(angle);
-          if (angle < 0) {
-            angle += 360;
-          }
-        }
-      }
-    }
-  }
-
   // FIXME - framework should auto-release - unless configured not to
   public void releaseService() {
     try {
+      // possible race condition if disable is queued
+      // but release happens quicker ?
       disable();
+      
+      InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+      Runtime.start(c.bicep);
+      Runtime.start(c.rotate);
+      Runtime.start(c.shoulder);
+      Runtime.start(c.omoplate);
+      
+      
       super.releaseService();
     } catch (Exception e) {
       error(e);
@@ -290,70 +130,30 @@ public class InMoov2Arm extends Service implements IKJointAngleListener {
   }
 
   public void rest() {
-    if (bicep != null)
-      bicep.rest();
-    if (rotate != null)
-      rotate.rest();
-    if (shoulder != null)
-      shoulder.rest();
-    if (omoplate != null)
-      omoplate.rest();
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+    send(c.bicep, "rest");
+    send(c.rotate, "rest");
+    send(c.shoulder, "rest");
+    send(c.omoplate, "rest");
   }
 
   @Override
   public boolean save() {
     super.save();
-    if (bicep != null)
-      bicep.save();
-    if (rotate != null)
-      rotate.save();
-    if (shoulder != null)
-      shoulder.save();
-    if (omoplate != null)
-      omoplate.save();
-    return true;
-  }
-
-  @Deprecated
-  public boolean loadFile(String file) {
-    File f = new File(file);
-    Python p = (Python) Runtime.getService("python");
-    log.info("Loading  Python file {}", f.getAbsolutePath());
-    if (p == null) {
-      log.error("Python instance not found");
-      return false;
-    }
-    String script = null;
-    try {
-      script = FileIO.toString(f.getAbsolutePath());
-    } catch (IOException e) {
-      log.error("IO Error loading file : ", e);
-      return false;
-    }
-    // evaluate the scripts in a blocking way.
-    boolean result = p.exec(script, true);
-    if (!result) {
-      log.error("Error while loading file {}", f.getAbsolutePath());
-      return false;
-    } else {
-      log.debug("Successfully loaded {}", f.getAbsolutePath());
-    }
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+    send(c.bicep, "save");
+    send(c.rotate, "save");
+    send(c.shoulder, "save");
+    send(c.omoplate, "save");
     return true;
   }
 
   public void setAutoDisable(Boolean idleTimeoutMs) {
-    if (bicep != null)
-      bicep.setAutoDisable(idleTimeoutMs);
-    if (rotate != null)
-      rotate.setAutoDisable(idleTimeoutMs);
-    if (shoulder != null)
-      shoulder.setAutoDisable(idleTimeoutMs);
-    if (omoplate != null)
-      omoplate.setAutoDisable(idleTimeoutMs);
-  }
-
-  public void setBicep(ServoControl bicep) {
-    this.bicep = bicep;
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+    send(c.bicep, "setAutoDisable", idleTimeoutMs);
+    send(c.rotate, "setAutoDisable", idleTimeoutMs);
+    send(c.shoulder, "setAutoDisable", idleTimeoutMs);
+    send(c.omoplate, "setAutoDisable", idleTimeoutMs);
   }
 
   /**
@@ -361,55 +161,28 @@ public class InMoov2Arm extends Service implements IKJointAngleListener {
    * arm. Input limits are unchanged.
    * 
    * @param bicepMin
-   *          m
    * @param bicepMax
-   *          m
    * @param rotateMin
-   *          m
    * @param rotateMax
-   *          m
    * @param shoulderMin
-   *          m
    * @param shoulderMax
-   *          m
    * @param omoplateMin
-   *          m
    * @param omoplateMax
-   *          m
-   * 
    */
   public void setLimits(double bicepMin, double bicepMax, double rotateMin, double rotateMax, double shoulderMin, double shoulderMax, double omoplateMin, double omoplateMax) {
-    if (bicep != null)
-      bicep.setMinMaxOutput(bicepMin, bicepMax);
-    if (rotate != null)
-      rotate.setMinMaxOutput(rotateMin, rotateMax);
-    if (shoulder != null)
-      shoulder.setMinMaxOutput(shoulderMin, shoulderMax);
-    if (omoplate != null)
-      omoplate.setMinMaxOutput(omoplateMin, omoplateMax);
-  }
-
-  public void setOmoplate(ServoControl omoplate) {
-    this.omoplate = omoplate;
-  }
-
-  public void setRotate(ServoControl rotate) {
-    this.rotate = rotate;
-  }
-
-  public void setShoulder(ServoControl shoulder) {
-    this.shoulder = shoulder;
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+    send(c.bicep, "setMinMaxOutput", bicepMin, bicepMax);
+    send(c.rotate, "setMinMaxOutput", rotateMin, rotateMax);
+    send(c.shoulder, "setMinMaxOutput", shoulderMin, shoulderMax);
+    send(c.omoplate, "setMinMaxOutput", omoplateMin, omoplateMax);
   }
 
   public void setSpeed(Double bicepSpeed, Double rotateSpeed, Double shoulderSpeed, Double omoplateSpeed) {
-    if (bicep != null)
-      bicep.setSpeed(bicepSpeed);
-    if (rotate != null)
-      rotate.setSpeed(rotateSpeed);
-    if (shoulder != null)
-      shoulder.setSpeed(shoulderSpeed);
-    if (omoplate != null)
-      omoplate.setSpeed(omoplateSpeed);
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+    send(c.bicep, "setSpeed", bicepSpeed);
+    send(c.rotate, "setSpeed", rotateSpeed);
+    send(c.shoulder, "setSpeed", shoulderSpeed);
+    send(c.omoplate, "setSpeed", omoplateSpeed);
   }
 
   @Deprecated
@@ -418,42 +191,31 @@ public class InMoov2Arm extends Service implements IKJointAngleListener {
   }
 
   public void stop() {
-    if (bicep != null)
-      bicep.stop();
-    if (rotate != null)
-      rotate.stop();
-    if (shoulder != null)
-      shoulder.stop();
-    if (omoplate != null)
-      omoplate.stop();
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+    send(c.bicep, "stop");
+    send(c.rotate, "stop");
+    send(c.shoulder, "stop");
+    send(c.omoplate, "stop");
   }
 
   public void test() {
-    /*
-     * FIXME - non ServoController methods must go - or I2C needs a
-     * connect(baseAddress, address) with overloaded connect("0x48- if
-     * (!arduino.isConnected()) { error("arduino not connected"); }
-     */
-    if (bicep != null)
-      bicep.moveTo(bicep.getCurrentInputPos() + 2);
-    if (rotate != null)
-      rotate.moveTo(rotate.getCurrentInputPos() + 2);
-    if (shoulder != null)
-      shoulder.moveTo(shoulder.getCurrentInputPos() + 2);
-    if (omoplate != null)
-      omoplate.moveTo(omoplate.getCurrentInputPos() + 2);
-    sleep(300);
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+    send(c.bicep, "moveInc", 2);
+    send(c.rotate, "moveInc", 2);
+    send(c.shoulder, "moveInc", 2);
+    send(c.omoplate, "moveInc", 2);
   }
 
   public void waitTargetPos() {
-    if (bicep != null)
-      bicep.waitTargetPos();
-    if (rotate != null)
-      rotate.waitTargetPos();
-    if (shoulder != null)
-      shoulder.waitTargetPos();
-    if (omoplate != null)
-      omoplate.waitTargetPos();
+    InMoov2ArmConfig c = (InMoov2ArmConfig) config;
+    try {
+      sendBlocking(c.bicep, "waitTargetPos");
+      sendBlocking(c.rotate, "waitTargetPos");
+      sendBlocking(c.shoulder, "waitTargetPos");
+      sendBlocking(c.omoplate, "waitTargetPos");
+    } catch (Exception e) {
+      error(e);
+    }
   }
 
 }

@@ -2656,6 +2656,11 @@ public class Msg {
   
   synchronized byte[] sendMessage(ByteArrayOutputStream baos) throws Exception {
     byte[] message = baos.toByteArray();
+    
+    if (serial != null && !serial.isConnected()) {
+      log.error("{} - SERIAL NOT CONNECTED but Arduino sendMessage", serial.getName());
+      return message;
+    }
 
     if (message.length > MAX_MSG_SIZE) {
       log.error("**** message size {} > MAX_MSG_SIZE {} - not sending ****", MAX_MSG_SIZE, message.length);
