@@ -3,6 +3,18 @@ angular.module('mrlapp.service.AudioFileGui', []).controller('AudioFileGuiCtrl',
     var _self = this
     var msg = this.msg
 
+    $scope.playlistName = null
+    $scope.playlistPath = null
+    
+
+    $scope.addPlayList = function() {
+        msg.send('addPlayList', $scope.playlistName)
+    }
+
+    $scope.setPlayList = function() {
+        msg.send('setPlayList', $scope.name)
+    }
+
     $scope.playFile = function() {
         msg.send('playFile', $scope.selectedFile)
     }
